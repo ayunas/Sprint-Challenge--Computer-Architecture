@@ -42,24 +42,34 @@ class LS8:
 
     def ldi(self,r_address,val): #load immediate (into a cpu register)
         self.reg[r_address] = val
-        print('register:', self.reg)
+        print('LDI complete.  register:', self.reg)
     
     def alu(self,op,reg_a,reg_b):
         if op == 'CMP':
-            if reg_a - reg_b > 0: #reg_a > reg_b
-                self.fl = 0b00000010
-                print(self.reg[reg_a], ' > ', self.reg[reg_b])
-            elif reg_a - reg_b < 0: #reg_a < reg_b
-                self.fl = 0b00000100
+            if self.reg[reg_a] - self.reg[reg_b] < 0: #reg_a < reg_b
+                self.fl = 0b00000100  #3
                 print(self.reg[reg_a],' < ', self.reg[reg_b])
-            elif reg_a - reg_b == 0:
-                self.fl = 0b00000001
+            elif self.reg[reg_a] - self.reg[reg_b] > 0: #reg_a > reg_b
+                self.fl = 0b00000010 #2
+                print(self.reg[reg_a], ' > ', self.reg[reg_b])
+            elif self.reg[reg_a] - self.reg[reg_b] == 0:
+                self.fl = 0b00000001 #1
                 print(self.reg[reg_a], ' = ', self.reg[reg_b])
             else:
                 print(f'error occured comparing {self.reg[reg_a]} and {self.reg[reg_b]}')
                 raise Exception
                 sys.exit()
-        
+    def push(self,pc):
+        self.ram[self.sp] = pc
+        self.sp -= 1
+        print('ram after pushing', self.ram)
+    
+    def pop(self):
+        self.sp += 1
+        popped = self.ram[self.sp]
+        self.ram[self.sp] = 0
+        return popped
+
     def run(self):
         try:
             self.load()
@@ -70,19 +80,64 @@ class LS8:
 
         while halted == False:
             instruction = self.ram[self.pc]
+            print(f'instruction', instruction, 'pc:', self.pc)
 
             if instruction == LDI:
                 r_address = self.ram[self.pc + 1]
                 val = self.ram[self.pc + 2]
                 self.ldi(r_address,val)
                 self.pc += 3
+        
+            elif instruction == PRN:
+                r_address = self.ram[self.pc + 1]
+                print(self.reg[r_address])
+                self.pc += 2
             
             elif instruction == CMP:
                 reg_a = self.ram[self.pc + 1]
                 reg_b = self.ram[self.pc + 2]
                 self.alu('CMP', reg_a, reg_b)
-                self.pc += 2
-
+                self.pc += 3
+            
+            elif instruction == JEQ: #jump to register if equal
+                print('in JEQ')
+                if self.fl == 0b00000001: #equal bit flagged
+                    self.push(self.pc)
+                    r_address = self.ram[self.pc + 1]
+                    self.pc = self.reg[r_address]
+                else:
+                    print('fl not equal')
+                    self.pc += 2
+            
+            elif instruction == TEST1:
+                print('in TEST1')
+                self.pc += 1 #evaulate the subroutine
+            elif instruction == TEST2:
+                print('in TEST2')
+                self.pc += 1
+            elif instruction == TEST3:
+                self.pc += 1
+            elif instruction == TEST4:
+                self.pc += 1
+            elif instruction == TEST5:
+                self.pc += 1
+            
+            elif instruction == JNE: #jump to register if not equal
+                print('in JNE')
+                if self.fl != 0b00000001:
+                    print('last comparison values not equal JNE')
+                    self.push(self.pc)
+                    r_address = self.ram[self.pc + 1]
+                    self.pc = self.reg[r_address]
+                else:
+                    self.pc += 2
+            
+            elif instruction == JMP:
+                print('in JMP')
+                self.push(self.pc)
+                r_address = self.ram[self.pc + 1]
+                self.pc = self.reg[r_address]
+            
             elif instruction == HLT:
                 self.pc += 1
                 halted = True
