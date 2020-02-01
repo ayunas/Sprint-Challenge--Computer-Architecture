@@ -1,6 +1,7 @@
 
 from operations import LDI,PRN,TEST1,TEST2,TEST3,TEST4,TEST5,CMP,JEQ,JNE,JMP,HLT,NOT
 import sys
+from itertools import dropwhile
 
 class LS8:
     def __init__(self):
@@ -10,35 +11,84 @@ class LS8:
         self.sp = -1 #initial stack pointer at the end of the ram
         self.fl = 0b00000000 #00000LGE L = Less, G = Greater E = Equal
 
-    def load(self):
+    def __validate__(self):
         if len(sys.argv) != 2:
-            raise IOError("cannot load file or file not specified")
+            raise IOError('cannot load file. not specified')
             sys.exit()
         try:
             filename = sys.argv[1]
             program = open(filename, 'r')
-            address = 0
         except IOError:
-            print('Could not open/read file', filename)
+            print('could not open/read file', filename)
             raise IOError
             sys.exit()
-
-        for i in range(7): #skip the 1st 7 lines of the program
-            program.readline()
-        
-        
+        return [*program]
+    
+    def load(self):
+        program = self.__validate__()
+        address = 0
         instructions = []
-        for line in program:
-            byte = line.split(' #')[0]
-            byte = byte.strip()
-            if '#' in byte:
-                continue
-            instructions.append(byte)
+
+        program = [*dropwhile(lambda l: l.startswith('#') or l == '\n' ,program)]
+        bytes = [b.split(' #')[0].strip() if '#' in b else b.strip() for b in program]
+        bytes = [*filter(lambda x: '#' not in x, bytes)]
+        
+        for b in bytes:
+            instructions.append(int(b,2))
         
         for byte in instructions:
-            self.ram[address] = int(byte,2)
+            self.ram[address] = byte
             address += 1
-    
+
+    # def load(self):
+    #     program = self.__validate__()
+    #     address = 0
+    #     instructions = []
+        
+    #     while True:
+    #         line = program.readline()
+    #         if not line.startswith('#'):
+    #             break
+    #     print('first line',line)
+
+        # byte,add = line.split('#')
+        # print(byte)
+        # instructions.append(int(byte,2))
+        # for line in program:
+        #     print('line', line)
+        #     if line == '\n':
+        #         continue
+        #     if '#' in line:
+        #         byte,comment = line.split(' #')
+        #         instructions.append(int(byte.strip(),2))
+        #     else:
+        #         instructions.append(int(line.strip(),2))
+    #     print('instructions', instructions)
+    #     for byte in instructions:
+    #         self.ram[address] = byte
+    #         address += 1
+    #     print('ram after loading', self.ram)
+
+    # def load(self):
+    #     program = self.__validate__()
+    #     address = 0
+    #     instructions = []
+
+    #     for line in program:
+    #         if line.startswith('#'):
+    #             continue
+    #         if line == '\n':
+    #             continue
+    #         if '#' in line:
+    #             byte,comment = line.split(' #')
+    #             instructions.append(int(byte.strip(),2))
+    #         else:
+    #             instructions.append(int(line.strip(),2))
+    #     print('instructions', instructions)
+    #     for byte in instructions:
+    #         self.ram[address] = byte
+    #         address += 1
+        
     def not_bitwise(self,n):
         binary = f"{n:08b}"
         bin_list = [int(b) for b in iter(binary)]
@@ -90,12 +140,8 @@ class LS8:
         return popped
 
     def run(self):
-        try:
-            self.load()
-            halted = False
-        except Except:
-            print('file could not be loaded')
-            sys.exit()
+        self.load()
+        halted = False
 
         while halted == False:
             instruction = self.ram[self.pc]
